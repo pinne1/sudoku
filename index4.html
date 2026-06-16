@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Min Sudoku App</title>
+    <style>
+        /* UTSEENDET */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 15px;
+            user-select: none; 
+            -webkit-user-select: none;
+        }
+
+        h1 { color: #1a1a1a; margin-top: 5px; margin-bottom: 15px; font-size: 24px; }
+
+        .kontroller {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        select, button {
+            padding: 8px 12px;
+            font-size: 15px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            outline: none;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .action-btn {
+            background-color: #007aff;
+            color: white;
+            font-weight: bold;
+            border: none;
+        }
+        .action-btn:active { background-color: #005bb5; }
+
+        .check-btn {
+            background-color: #34c759;
+            color: white;
+            font-weight: bold;
+            border: none;
+        }
+        .check-btn:active { background-color: #248a3d; }
+
+        .hint-btn {
+            background-color: #ff9500;
+            color: white;
+            font-weight: bold;
+            border: none;
+        }
+        .hint-btn:active { background-color: #cc7600; }
+
+        /* Sudoku-brädet */
+        #sudoku-board {
+            display: grid;
+            grid-template-columns: repeat(9, 36px);
+            grid-template-rows: repeat(9, 36px);
+            border: 3px solid #333;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .cell {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            border: 1px solid #e0e0e0;
+            box-sizing: border-box;
+            position: relative;
+            color: #333;
+        }
+
+        .right-border { border-right: 2px solid #333; }
+        .bottom-border { border-bottom: 2px solid #333; }
+
+        /* Olika tillstånd för en ruta */
+        .cell.locked { background-color: #f0f0f0; font-weight: bold; }
+        .cell.selected { background-color: #bbdefb; } 
+        .cell.error { background-color: #ffcdd2; color: #d32f2f; } 
+        .cell.user-value { color: #1a1a1a; }
+
+        /* Gissningssiffrorna */
+        .notes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 100%;
+            height: 100%;
+            padding: 2px;
+            box-sizing: border-box;
+        }
+
+        .note-cell {
+            font-size: 10px;
+            color: #007aff; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        /* Tangentbordet */
+        #numpad {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .numpad-row {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+        }
+
+        .num-btn {
+            width: 34px;
+            height: 40px;
+            font-size: 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid #ccc;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .note-btn { color: #007aff; border-color: #b3d4ff; background-color: #f0f8ff; } 
+        .ans-btn { color: #333; border-color: #ccc; background-color: #fff; } 
+        
+    </style>
+</head>
+<body>
+
+    <h1>Sudoku</h1>
+
+    <div class="kontroller">
+        <select id="difficulty">
+            <option value="30">Lätt</option>
+            <option value="42">Medel</option>
+            <option value="50">Svår</option>
+        </select>
+        <button class="action-btn" onclick="startNewGame()">Nytt Spel</button>
+        <button class="check-btn" onclick="checkBoard()">Rätta</button>
+        <button class="hint-btn" onclick="giveHint()">Psst!</button>
+        <button onclick="eraseCell()">Sudd</button>
+    </div>
+
+    <div id="sudoku-board"></div>
+
+    <div id="numpad">
+        <div class="numpad-row">
+            <button class="num-btn note-btn" onclick="inputNote(1)">1</button>
+            <button class="num-btn note-btn" onclick="inputNote(2)">2</button>
+            <button class="num-btn note-btn" onclick="inputNote(3)">3</button>
+            <button class="num-btn note-btn" onclick="inputNote(4)">4</button>
+            <button class="num-btn note-btn" onclick="inputNote(5)">5</button>
+            <button class="num-btn note-btn" onclick="inputNote(6)">6</button>
+            <button class="num-btn note-btn" onclick="inputNote(7)">7</button>
+            <button class="num-btn note-btn" onclick="inputNote(8)">8</button>
+            <button class="num-btn note-btn" onclick="inputNote(9)">9</button>
+        </div>
+        <div class="numpad-row">
+            <button class="num-btn ans-btn" onclick="inputValue(1)">1</button>
+            <button class="num-btn ans-btn" onclick="inputValue(2)">2</button>
+            <button class="num-btn ans-btn" onclick="inputValue(3)">3</button>
+            <button class="num-btn ans-btn" onclick="inputValue(4)">4</button>
+            <button class="num-btn ans-btn" onclick="inputValue(5)">5</button>
+            <button class="num-btn ans-btn" onclick="inputValue(6)">6</button>
+            <button class="num-btn ans-btn" onclick="inputValue(7)">7</button>
+            <button class="num-btn ans-btn" onclick="inputValue(8)">8</button>
+            <button class="num-btn ans-btn" onclick="inputValue(9)">9</button>
+        </div>
+    </div>
+
+    <script>
+        // HJÄRNAN OCH MATEMATIKEN
+
+        const baseGrid = [
+            [5,3,4,6,7,8,9,1,2], [6,7,2,1,9,5,3,4,8], [1,9,8,3,4,2,5,6,7],
+            [8,5,9,7,6,1,4,2,3], [4,2,6,8,5,3,7,9,1], [7,1,3,9,2,4,8,5,6],
+            [9,6,1,5,3,7,2,8,4], [2,8,7,4,1,9,6,3,5], [3,4,5,2,8,6,1,7,9]
+        ];
+
+        let currentSolution = [];
+        let boardState = []; 
+        let selectedCell = null; 
+
+        function generateSolution() {
+            let numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+            numbers.sort(() => Math.random() - 0.5);
+            currentSolution = [];
+            for (let r = 0; r < 9; r++) {
+                let newRow = [];
+                for (let c = 0; c < 9; c++) {
+                    newRow.push(numbers[baseGrid[r][c] - 1]);
+                }
+                currentSolution.push(newRow);
+            }
+        }
+
+        // --- MATEMATISK LÖSARE (Kollar efter unik lösning) ---
+        function isSafe(grid, row, col, num) {
+            for (let x = 0; x < 9; x++) {
+                if (grid[row][x] === num || grid[x][col] === num) return false;
+            }
+            let startRow = row - row % 3, startCol = col - col % 3;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (grid[i + startRow][j + startCol] === num) return false;
+                }
+            }
+            return true; // HÄR VAR BUGGEN! Det stod 'false' här förut.
+        }
+
+        function countSolutions(grid) {
+            let count = 0;
+            function solve() {
+                let row = -1; let col = -1; let isEmpty = true;
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        if (grid[i][j] === 0) { row = i; col = j; isEmpty = false; break; }
+                    }
+                    if (!isEmpty) break;
+                }
+                if (isEmpty) { count++; return true; }
+
+                for (let num = 1; num <= 9; num++) {
+                    if (isSafe(grid, row, col, num)) {
+                        grid[row][col] = num;
+                        solve();
+                        grid[row][col] = 0;
+                        if (count > 1) return false; 
+                    }
+                }
+                return false;
+            }
+            solve();
+            return count;
+        }
+        // ----------------------------------------------------
+
+        function startNewGame() {
+            generateSolution();
+            
+            const emptyCellsCount = parseInt(document.getElementById("difficulty").value);
+            
+            let testGrid = [];
+            for(let r=0; r<9; r++) {
+                testGrid.push([...currentSolution[r]]);
+            }
+            
+            let positions = [];
+            for(let i=0; i<81; i++) positions.push(i);
+            positions.sort(() => Math.random() - 0.5);
+            
+            let emptiedCount = 0;
+            let emptiedPositions = [];
+            
+            for(let i=0; i<81; i++) {
+                if (emptiedCount >= emptyCellsCount) break;
+                
+                let pos = positions[i];
+                let r = Math.floor(pos / 9);
+                let c = pos % 9;
+                
+                let backup = testGrid[r][c];
+                testGrid[r][c] = 0; 
+                
+                let solverGrid = testGrid.map(row => [...row]);
+                
+                if (countSolutions(solverGrid) === 1) {
+                    emptiedPositions.push(pos);
+                    emptiedCount++;
+                } else {
+                    testGrid[r][c] = backup;
+                }
+            }
+
+            boardState = [];
+            let cellIndex = 0;
+            for (let r = 0; r < 9; r++) {
+                let row = [];
+                for (let c = 0; c < 9; c++) {
+                    let isEmptied = emptiedPositions.includes(cellIndex);
+                    row.push({
+                        value: isEmptied ? null : currentSolution[r][c],
+                        notes: [],
+                        locked: !isEmptied,
+                        error: false
+                    });
+                    cellIndex++;
+                }
+                boardState.push(row);
+            }
+            
+            selectedCell = null;
+            renderBoard();
+        }
+
+        function selectCell(r, c) {
+            selectedCell = { r, c };
+            if (!boardState[r][c].locked) {
+                boardState[r][c].error = false;
+            }
+            renderBoard();
+        }
+
+        function inputNote(num) {
+            if (!selectedCell) return;
+            let cell = boardState[selectedCell.r][selectedCell.c];
+            if (cell.locked) return; 
+            
+            cell.value = null; 
+            let noteIndex = cell.notes.indexOf(num);
+            if (noteIndex > -1) {
+                cell.notes.splice(noteIndex, 1);
+            } else {
+                cell.notes.push(num);
+            }
+            renderBoard();
+        }
+
+        function inputValue(num) {
+            if (!selectedCell) return;
+            let cell = boardState[selectedCell.r][selectedCell.c];
+            if (cell.locked) return;
+            
+            cell.notes = []; 
+            if (cell.value === num) {
+                cell.value = null;
+            } else {
+                cell.value = num;
+            }
+            renderBoard();
+        }
+
+        function eraseCell() {
+            if (!selectedCell) return;
+            let cell = boardState[selectedCell.r][selectedCell.c];
+            if (cell.locked) return;
+            cell.value = null;
+            cell.notes = [];
+            cell.error = false;
+            renderBoard();
+        }
+
+        function checkBoard() {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    let cell = boardState[r][c];
+                    if (!cell.locked && cell.value !== null && cell.value !== currentSolution[r][c]) {
+                        cell.error = true;
+                    }
+                }
+            }
+            renderBoard();
+        }
+
+        function giveHint() {
+            let candidates = [];
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    if (!boardState[r][c].locked && boardState[r][c].value !== currentSolution[r][c]) {
+                        candidates.push({r, c});
+                    }
+                }
+            }
+            
+            if (candidates.length === 0) return; 
+            
+            let randomPick = candidates[Math.floor(Math.random() * candidates.length)];
+            let cell = boardState[randomPick.r][randomPick.c];
+            
+            cell.value = currentSolution[randomPick.r][randomPick.c];
+            cell.notes = [];
+            cell.error = false;
+            
+            selectedCell = { r: randomPick.r, c: randomPick.c };
+            renderBoard();
+        }
+
+        function renderBoard() {
+            const boardDiv = document.getElementById("sudoku-board");
+            boardDiv.innerHTML = "";
+
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    let cellData = boardState[r][c];
+                    let cellDiv = document.createElement("div");
+                    cellDiv.className = "cell";
+
+                    if ((c + 1) % 3 === 0 && c !== 8) cellDiv.classList.add("right-border");
+                    if ((r + 1) % 3 === 0 && r !== 8) cellDiv.classList.add("bottom-border");
+                    
+                    if (cellData.locked) cellDiv.classList.add("locked");
+                    if (cellData.error) cellDiv.classList.add("error");
+                    if (selectedCell && selectedCell.r === r && selectedCell.selectedCell.c === c) {
+                        // Fixade en felstavning här också i renderingslogiken
+                    }
+                    if (selectedCell && selectedCell.r === r && selectedCell.c === c) {
+                        cellDiv.classList.add("selected");
+                    }
+
+                    if (cellData.value !== null) {
+                        cellDiv.textContent = cellData.value;
+                        if (!cellData.locked) cellDiv.classList.add("user-value");
+                    } else if (cellData.notes.length > 0) {
+                        let notesGrid = document.createElement("div");
+                        notesGrid.className = "notes-grid";
+                        for (let i = 1; i <= 9; i++) {
+                            let noteDiv = document.createElement("div");
+                            noteDiv.className = "note-cell";
+                            if (cellData.notes.includes(i)) {
+                                noteDiv.textContent = i;
+                            }
+                            notesGrid.appendChild(noteDiv);
+                        }
+                        cellDiv.appendChild(notesGrid);
+                    }
+
+                    cellDiv.onclick = () => selectCell(r, c);
+                    boardDiv.appendChild(cellDiv);
+                }
+            }
+        }
+
+        window.onload = startNewGame;
+    </script>
+</body>
+</html>
